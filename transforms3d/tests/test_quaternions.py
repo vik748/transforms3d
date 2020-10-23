@@ -85,9 +85,20 @@ def test_quat2mat():
     # Non-unit quaternion, same result as normalized
     M = tq.quat2mat([0, 2, 0, 0])
     assert_array_almost_equal(M, np.diag([1, -1, -1]))
-    assert_array_almost_equal(M, np.diag([1, -1, -1]))
     M = tq.quat2mat([0, 0, 0, 0])
     assert_array_almost_equal(M, np.eye(3))
+    Q = np.array([[1, 0, 0, 0],
+                  [3, 0, 0, 0],
+                  [0, 1, 0, 0],
+                  [0, 2, 0, 0],
+                  [0, 0, 0, 0]])
+    mats = np.stack((np.eye(3),
+                     np.eye(3),
+                     np.diag([1, -1, -1]),
+                     np.diag([1, -1, -1]),
+                     np.eye(3) ))
+    M = tq.quat2mat(Q)
+    assert_array_almost_equal(M, mats)
 
 
 def test_qinverse():
@@ -113,7 +124,7 @@ def test_qexp():
     angular_velocity_pure_quaterion = np.array([0., math.pi, 0, 0])
     dt = 1.0
     q_integrate_angular_vel = tq.qexp(angular_velocity_pure_quaterion * dt/2)
-    # See https://www.ashwinnarayan.com/post/how-to-integrate-quaternions/ near the end. 
+    # See https://www.ashwinnarayan.com/post/how-to-integrate-quaternions/ near the end.
     # The formula q(t) = qexp(q_w * t / 2), where q_w is [0 w_x, w_y, w_z]
     # represents angular velocity in x,y,z, produces a quaternion that
     # represents the integration of angular velocity w during time t  so this
@@ -139,7 +150,7 @@ def test_qexp_qlog():
 
 def test_qpow():
     # https://www.mathworks.com/help/aerotbx/ug/quatpower.html?searchHighlight=quaternion%20power&s_tid=doc_srchtitle
-    assert np.allclose(tq.qpow(np.array([0.7071, 0, 0.7071, 0]), 2), np.array([0, 0, 1, 0]), atol=1e-05)   
+    assert np.allclose(tq.qpow(np.array([0.7071, 0, 0.7071, 0]), 2), np.array([0, 0, 1, 0]), atol=1e-05)
 
 
 def test_qexp_matlab():
@@ -169,7 +180,7 @@ def test_qnorm():
 
 
 def test_qmult():
-    # Test that quaternion * same as matrix * 
+    # Test that quaternion * same as matrix *
     for M1, q1 in eg_pairs[0::4]:
         for M2, q2 in eg_pairs[1::4]:
             q21 = tq.qmult(q2, q1)

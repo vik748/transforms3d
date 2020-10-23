@@ -103,11 +103,11 @@ def quat2mat(q):
 
     Parameters
     ----------
-    q : 4 element array-like
+    q : 4 element array-like or (N,4) array
 
     Returns
     -------
-    M : (3,3) array
+    M : (3,3) array or (N,3,3) array
       Rotation matrix corresponding to input quaternion *q*
 
     Notes
@@ -129,23 +129,44 @@ def quat2mat(q):
     >>> M = quat2mat([0, 1, 0, 0]) # 180 degree rotn around axis 0
     >>> np.allclose(M, np.diag([1, -1, -1]))
     True
-    '''
-    w, x, y, z = q
-    Nq = w*w + x*x + y*y + z*z
-    if Nq < _FLOAT_EPS:
-        return np.eye(3)
-    s = 2.0/Nq
-    X = x*s
-    Y = y*s
-    Z = z*s
-    wX = w*X; wY = w*Y; wZ = w*Z
-    xX = x*X; xY = x*Y; xZ = x*Z
-    yY = y*Y; yZ = y*Z; zZ = z*Z
-    return np.array(
-           [[ 1.0-(yY+zZ), xY-wZ, xZ+wY ],
-            [ xY+wZ, 1.0-(xX+zZ), yZ-wX ],
-            [ xZ-wY, yZ+wX, 1.0-(xX+yY) ]])
 
+    '''
+    if type(q) is np.ndarray and q.ndim == 2 and q.shape[1] == 4:
+        mats = np.zeros((len(q),3,3))
+        w,x,y,z = q.T
+        Nq = w*w + x*x + y*y + z*z
+        non_iden_mask = Nq > _FLOAT_EPS
+        iden_mask = ~non_iden_mask
+        mats[iden_mask] = np.eye(3)
+        w = w[non_iden_mask]; x = x[non_iden_mask]; y = y[non_iden_mask]; z = z[non_iden_mask]
+        Nq = Nq[non_iden_mask]
+        s = 2.0/Nq
+        X = x*s
+        Y = y*s
+        Z = z*s
+        wX = w*X; wY = w*Y; wZ = w*Z
+        xX = x*X; xY = x*Y; xZ = x*Z
+        yY = y*Y; yZ = y*Z; zZ = z*Z
+        mats[non_iden_mask] = np.stack(( 1.0-(yY+zZ), xY-wZ, xZ+wY,
+                                         xY+wZ, 1.0-(xX+zZ), yZ-wX,
+                                         xZ-wY, yZ+wX, 1.0-(xX+yY)), axis=1).reshape(-1,3,3)
+        return mats
+    else:
+        w, x, y, z = q
+        Nq = w*w + x*x + y*y + z*z
+        if Nq < _FLOAT_EPS:
+            return np.eye(3)
+        s = 2.0/Nq
+        X = x*s
+        Y = y*s
+        Z = z*s
+        wX = w*X; wY = w*Y; wZ = w*Z
+        xX = x*X; xY = x*Y; xZ = x*Z
+        yY = y*Y; yZ = y*Z; zZ = z*Z
+        return np.array(
+               [[ 1.0-(yY+zZ), xY-wZ, xZ+wY ],
+                [ xY+wZ, 1.0-(xX+zZ), yZ-wX ],
+                [ xZ-wY, yZ+wX, 1.0-(xX+yY) ]])
 
 def mat2quat(M):
     ''' Calculate quaternion corresponding to given rotation matrix
