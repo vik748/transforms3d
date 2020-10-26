@@ -186,11 +186,11 @@ def mat2quat(M):
     Parameters
     ----------
     M : array-like
-      3x3 rotation matrix
+      3x3 rotation matrix or Nx3x3 rotation matrices
 
     Returns
     -------
-    q : (4,) array
+    q : (4,) array or (Nx4) array
       closest quaternion to input matrix, having positive q[0]
 
     References
@@ -221,26 +221,40 @@ def mat2quat(M):
     0731-5090
 
     '''
-    # Qyx refers to the contribution of the y input vector component to
-    # the x output vector component.  Qyx is therefore the same as
-    # M[0,1].  The notation is from the Wikipedia article.
-    Qxx, Qyx, Qzx, Qxy, Qyy, Qzy, Qxz, Qyz, Qzz = M.flat
-    # Fill only lower half of symmetric matrix
-    K = np.array([
-        [Qxx - Qyy - Qzz, 0,               0,               0              ],
-        [Qyx + Qxy,       Qyy - Qxx - Qzz, 0,               0              ],
-        [Qzx + Qxz,       Qzy + Qyz,       Qzz - Qxx - Qyy, 0              ],
-        [Qyz - Qzy,       Qzx - Qxz,       Qxy - Qyx,       Qxx + Qyy + Qzz]]
-        ) / 3.0
-    # Use Hermitian eigenvectors, values for speed
-    vals, vecs = np.linalg.eigh(K)
-    # Select largest eigenvector, reorder to w,x,y,z quaternion
-    q = vecs[[3, 0, 1, 2], np.argmax(vals)]
-    # Prefer quaternion with positive w
-    # (q * -1 corresponds to same rotation as q)
-    if q[0] < 0:
-        q *= -1
-    return q
+    if type(M) is np.ndarray and M.ndim == 3 and M.shape[1:] == (3,3):
+        Qxx, Qyx, Qzx, Qxy, Qyy, Qzy, Qxz, Qyz, Qzz = M.reshape((-1,9)).T
+        O = np.zeros_like(Qxx)
+        K = np.stack((Qxx - Qyy - Qzz, O              , O              , O              ,
+                      Qyx + Qxy      , Qyy - Qxx - Qzz, O              , O              ,
+                      Qzx + Qxz      , Qzy + Qyz      , Qzz - Qxx - Qyy, O              ,
+                      Qyz - Qzy      , Qzx - Qxz      , Qxy - Qyx      , Qxx + Qyy + Qzz),
+                     axis=1).reshape((-1,4,4)) / 3.0
+        vals, vecs = np.linalg.eigh(K)
+        q = vecs[np.arange(len(M)), :, np.argmax(vals, axis=1)][:,[3,0,1,2]]
+        q[q[:,0] < 0, 0] *= -1
+        return q
+
+    else:
+        # Qyx refers to the contribution of the y input vector component to
+        # the x output vector component.  Qyx is therefore the same as
+        # M[0,1].  The notation is from the Wikipedia article.
+        Qxx, Qyx, Qzx, Qxy, Qyy, Qzy, Qxz, Qyz, Qzz = M.flat
+        # Fill only lower half of symmetric matrix
+        K = np.array([
+            [Qxx - Qyy - Qzz, 0,               0,               0              ],
+            [Qyx + Qxy,       Qyy - Qxx - Qzz, 0,               0              ],
+            [Qzx + Qxz,       Qzy + Qyz,       Qzz - Qxx - Qyy, 0              ],
+            [Qyz - Qzy,       Qzx - Qxz,       Qxy - Qyx,       Qxx + Qyy + Qzz]]
+            ) / 3.0
+        # Use Hermitian eigenvectors, values for speed
+        vals, vecs = np.linalg.eigh(K)
+        # Select largest eigenvector, reorder to w,x,y,z quaternion
+        q = vecs[[3, 0, 1, 2], np.argmax(vals)]
+        # Prefer quaternion with positive w
+        # (q * -1 corresponds to same rotation as q)
+        if q[0] < 0:
+            q *= -1
+        return q
 
 
 def qmult(q1, q2):

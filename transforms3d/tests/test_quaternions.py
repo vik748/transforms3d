@@ -204,6 +204,13 @@ def test_quaternion_reconstruction():
         posm = np.allclose(q, qt)
         negm = np.allclose(q, -qt)
         assert posm or negm
+    # Test vectorized operations
+    Q = np.array(list(unit_quats))
+    M = tq.quat2mat(Q)
+    QT = tq.mat2quat(M)
+    posm = np.isclose(Q, QT)
+    negm = np.isclose(Q, -QT)
+    assert np.logical_or(posm, negm).all()
 
 
 def test_angle_axis2quat():
